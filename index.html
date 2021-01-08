@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>XR FPS</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no' />
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <script src='playcanvas-stable.min.js'></script>
+    <!--
+    <script src="ammo.751ec5f.js"></script>
+    -->
+    <script src="lib/wasm-loader.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+
+<body>
+    <canvas id='application'></canvas>
+    <script>
+        if (wasmSupported()) {
+            loadWasmModuleAsync('Ammo', 'lib/ammo/ammo.wasm.js', 'lib/ammo/ammo.wasm.wasm', game);
+        } else {
+            loadWasmModuleAsync('Ammo', 'lib/ammo/ammo.js', '', game);
+        }
+
+        function game() {
+            //-----PLAYCANVAS SETUP-----
+            var canvas = document.getElementById('application');
+            var app = new pc.Application(canvas, {
+                mouse: new pc.Mouse(canvas),
+                touch: new pc.TouchDevice(document.body),
+                elementInput: new pc.ElementInput(canvas)
+            });
+            app.scene.ambientLight = new pc.Color(0.5, 0.5, 0.5);
+            app.systems.rigidbody.setGravity(0, -20, 0);
+            app.start();
+
+            app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW);
+            app.setCanvasResolution(pc.RESOLUTION_AUTO);
+
+            window.addEventListener('resize', function() {
+                app.resizeCanvas();
+            });
+            //-----PLAYCANVAS SETUP-----
+
+
+            //-----ENVIRONMENT SETUP-----
+            black = new pc.StandardMaterial();
+            black.diffuse.set(0.1, 0.1, 0.1);
+            black.update();
+
+            var ground = new pc.Entity("ground");
+            ground.addComponent("model", {
+                type: "plane"
+            });
+            ground.addComponent('collision', {
+                type: 'box',
+                halfExtents: [20, 0.01, 20],
+            });
+            ground.addComponent('rigidbody', {
+                type: pc.BODYTYPE_STATIC,
+            });
+            ground.model.meshInstances[0].material = black;
+            ground.setEulerAngles(0, 0, 0);
+            ground.translate(0, -0.5, 0);
+            ground.setLocalScale(40, 0, 40);
+            app.root.addChild(ground);
+
+
+            var light1 = new pc.Entity('light');
+            light1.addComponent('light', {
+                type: "directional",
+                castShadows: true,
+                shadowBias: 0.2,
+                shadowDistance: 16,
+                normalOffsetBias: 0.05,
+                shadowResolution: 2048
+            });
+            var light2 = new pc.Entity('light');
+            light2.addComponent('light', {
+                type: "directional"
+            });
+            light1.setEulerAngles(30, 0, 30);
+            light2.setEulerAngles(-120, 0, 60);
+            app.root.addChild(light1);
+            app.root.addChild(light2);
+            //-----ENVIRONMENT SETUP-----
+
+
+            //-----PLAYER SETUP-----
+            var camera = new pc.Entity();
+            camera.addComponent("camera", {
+                clearColor: new pc.Color(0.4, 0.45, 0.5),
+                farClip: 100,
+                fov: 65,
+                nearClip: 0.1
+            });
+            camera.setLocalPosition(0, 1, 0);
+
+
+            var characterController = new pc.Entity("characterController");
+            characterController.addComponent("collision", {
+                type: "box",
+                halfExtents: [0.4, 1, 0.4]
+            });
+            characterController.addComponent("rigidbody", {
+                angularDamping: 0,
+                angularFactor: pc.Vec3.ZERO,
+                linearDamping: 0,
+                linearFactor: pc.Vec3.ONE,
+                restitution: 0,
+                type: "dynamic"
+            });
+            characterController.addComponent("model", {
+                type: "capsule",
+            });
+            characterController.setLocalPosition(11, 5, 0);
+
+            app.root.addChild(characterController);
+            characterController.addChild(camera);
+            camera.rotate(0, 90, 0);
+            //-----PLAYER SETUP-----
+
+
+            //-----UI SETUP-----
+            var screen = new pc.Entity();
+            screen.addComponent("screen", {
+                referenceResolution: new pc.Vec2(1280, 720),
+                scaleBlend: 0.5,
+                scaleMode: pc.SCALEMODE_BLEND,
+                screenSpace: true,
+            });
+            app.root.addChild(screen);
+
+            var jumpBtn = new pc.Entity();
+            jumpBtn.addComponent("button", {
+                imageEntity: jumpBtn,
+            });
+            jumpBtn.button.hoverTint = new pc.Color(1, 1, 1);
+            jumpBtn.button.pressedTint = new pc.Color(0.1, 0.1, 0.1);
+            jumpBtn.addComponent("element", {
+                anchor: [1, 0, 1, 0],
+                height: 450,
+                pivot: [0.5, 0.5],
+                type: pc.ELEMENTTYPE_IMAGE,
+                width: 450,
+                useInput: true,
+            });
+            screen.addChild(jumpBtn);
+
+            var shootBtn = new pc.Entity();
+            shootBtn.addComponent("button", {
+                imageEntity: shootBtn,
+            });
+            shootBtn.button.hoverTint = new pc.Color(1, 1, 1);
+            shootBtn.button.pressedTint = new pc.Color(0.1, 0.1, 0.1);
+            shootBtn.addComponent("element", {
+                anchor: [0, 1, 0, 1],
+                height: 450,
+                pivot: [0.5, 0.5],
+                type: pc.ELEMENTTYPE_IMAGE,
+                width: 450,
+                useInput: true,
+            });
+            screen.addChild(shootBtn);
+
+
+            var xrBtn = new pc.Entity();
+            xrBtn.addComponent("button", {
+                imageEntity: xrBtn,
+            });
+            xrBtn.button.hoverTint = new pc.Color(1, 1, 1);
+            xrBtn.button.pressedTint = new pc.Color(0.1, 0.1, 0.1);
+            xrBtn.addComponent("element", {
+                anchor: [1, 1, 1, 1],
+                height: 450,
+                pivot: [0.5, 0.5],
+                type: pc.ELEMENTTYPE_IMAGE,
+                width: 450,
+                useInput: true,
+            });
+            screen.addChild(xrBtn);
+
+
+            var crosshair = new pc.Entity();
+            crosshair.addComponent("button", {
+                imageEntity: crosshair,
+            });
+            crosshair.button.hoverTint = new pc.Color(1, 1, 1);
+            crosshair.button.pressedTint = new pc.Color(0.1, 0.1, 0.1);
+            crosshair.addComponent("element", {
+                anchor: [0.5, 0.5, 0.5, 0.5],
+                height: 10,
+                pivot: [0.5, 0.5],
+                type: pc.ELEMENTTYPE_IMAGE,
+                width: 10,
+                useInput: false,
+                color: new pc.Color(0, 0, 0)
+            });
+            screen.addChild(crosshair);
+            //-----UI SETUP-----
+
+
+            //-----SCRIPTS SETUP
+            app.assets.loadFromUrl('touch-input.js', 'script', function(err, asset) {
+                characterController.addComponent('script');
+                characterController.script.create("touchInput", {
+                    attributes: {
+                        camera: camera,
+                        jumpBtn: jumpBtn,
+                        shootBtn: shootBtn,
+                        player: characterController,
+                        movementSensitivity: 1,
+                        lookSensitivity: 0.7
+                    }
+                });
+            });
+            //-----SCRIPTS SETUP-----
+
+
+            //-----MAP SETUP-----
+            var url = "./scene.glb";
+            app.assets.loadFromUrl(url, "container", function(err, asset) {
+                var entity = new pc.Entity();
+                entity.addComponent("model", {
+                    type: "asset",
+                    asset: asset.resource.model,
+                    castShadows: true
+                });
+                entity.addComponent("collision", {
+                    type: "mesh",
+                    asset: asset.resource.model,
+                });
+                entity.addComponent("rigidbody", {
+                    friction: 0.3,
+                    linearDamping: 0,
+                    linearFactor: pc.Vec3.ONE,
+                    mass: 1,
+                    restitution: 10,
+                    type: "static"
+                });
+                app.root.addChild(entity);
+            });
+            //-----MAP SETUP-----
+
+            //-----XR SETUP-----
+            xrBtn.button.on('touchstart', function(e) {
+                if (app.xr.isAvailable(pc.XRTYPE_AR)) {
+                    camera.camera.startXr(pc.XRTYPE_AR, pc.XRSPACE_LOCAL);
+                }
+            }.bind(this));
+
+            app.xr.input.on('add', function(inputSource) {
+                characterController.script.touchInput.shoot();
+            }.bind(this));
+        }
+    </script>
+</body>
+
+</html>
