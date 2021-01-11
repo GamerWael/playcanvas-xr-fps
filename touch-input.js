@@ -211,8 +211,12 @@ TouchInput.prototype.update = function(dt) {
 TouchInput.prototype.shoot = function() {
     console.log("shooting");
 
-    var screenCenterX = (this.app.graphicsDevice.width / 2);
-    var screenCenterY = (this.app.graphicsDevice.height / 2);
+    //var screenCenterX = (this.app.graphicsDevice.width / 2);
+    //var screenCenterY = (this.app.graphicsDevice.height / 2);
+    //var screenCenterX = (document.getElementById('application').width / 2);
+    //var screenCenterY = (document.getElementById('application').height / 2);
+    var screenCenterX = 391/2;
+    var screenCenterY = 768/2;
 
     var from = this.camera.camera.screenToWorld(screenCenterX, screenCenterY, this.camera.camera.nearClip);
     var to = this.camera.camera.screenToWorld(screenCenterX, screenCenterY, this.camera.camera.farClip);
@@ -246,6 +250,7 @@ TouchInput.prototype.shoot = function() {
         });
         entity.addComponent("collision", {
             type: 'box',
+            halfExtents: [0.05,0.05,0.05]
         });
         entity.addComponent("rigidbody", {
             type: pc.BODYTYPE_STATIC,
@@ -255,6 +260,7 @@ TouchInput.prototype.shoot = function() {
             pos.y,
             pos.z
         );
+        entity.setLocalScale(0.1,0.1,0.1);
         entity.model.meshInstances[0].material = this.red;
 
         this.app.root.addChild(entity);
