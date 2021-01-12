@@ -44,6 +44,9 @@ TouchInput.prototype.initialize = function() {
     this.red.diffuse.set(1, 0, 0);
     this.red.update();
 
+    this.from = 0;
+    this.to = 0;
+
     this.azimuth = 0;
     this.elevation = 0;
 
@@ -209,30 +212,20 @@ TouchInput.prototype.update = function(dt) {
 
 
 TouchInput.prototype.shoot = function() {
-    console.log("shooting");
+    this.from = this.camera.getPosition().clone();
+    this.to = this.from.clone().add(this.camera.forward.scale(this.camera.camera.farClip));
 
-    //var screenCenterX = (this.app.graphicsDevice.width / 2);
-    //var screenCenterY = (this.app.graphicsDevice.height / 2);
-    //var screenCenterX = (document.getElementById('application').width / 2);
-    //var screenCenterY = (document.getElementById('application').height / 2);
-    var screenCenterX = 391/2;
-    var screenCenterY = 768/2;
-
-    var from = this.camera.camera.screenToWorld(screenCenterX, screenCenterY, this.camera.camera.nearClip);
-    var to = this.camera.camera.screenToWorld(screenCenterX, screenCenterY, this.camera.camera.farClip);
-
-
-    var results = this.app.systems.rigidbody.raycastAll(from, to);
+    var results = this.app.systems.rigidbody.raycastAll(this.from, this.to);
     //var result = this.app.systems.rigidbody.raycastFirst(from, to);
 
     if (results.length > 0) {
         var temp = results;
 
         results.sort(function(a, b) {
-            var a1 = a.point.distance(from);
-            var a2 = b.point.distance(from);
+            var a1 = a.point.distance(this.from);
+            var a2 = b.point.distance(this.from);
             return a1 - a2
-        });
+        }.bind(this));
 
         result = results[0];
         if (results[0].entity.name == "characterController")
@@ -250,7 +243,7 @@ TouchInput.prototype.shoot = function() {
         });
         entity.addComponent("collision", {
             type: 'box',
-            halfExtents: [0.05,0.05,0.05]
+            halfExtents: [0.05, 0.05, 0.05]
         });
         entity.addComponent("rigidbody", {
             type: pc.BODYTYPE_STATIC,
@@ -260,7 +253,7 @@ TouchInput.prototype.shoot = function() {
             pos.y,
             pos.z
         );
-        entity.setLocalScale(0.1,0.1,0.1);
+        entity.setLocalScale(0.1, 0.1, 0.1);
         entity.model.meshInstances[0].material = this.red;
 
         this.app.root.addChild(entity);
